@@ -17,6 +17,14 @@ test('applies defaults and trims trailing slashes', () => {
     assert.equal(config.dbPath, './data/spot-price.db')
     assert.equal(config.spotApiBase, 'https://api.spot-hinta.fi')
     assert.equal(config.inviteUrl, null)
+    assert.equal(config.capability, 'beachprepare14195.spotPrice')
+    assert.equal(config.profileId, '9df37123-e82b-4ce6-a195-83f2163a4341')
+})
+
+test('reads capability and profile id overrides', () => {
+    const config = loadConfig({ ...env, CAPABILITY: 'ns.spotPrice', PROFILE_ID: 'profile-1' })
+    assert.equal(config.capability, 'ns.spotPrice')
+    assert.equal(config.profileId, 'profile-1')
 })
 
 test('lists all missing required variables', () => {

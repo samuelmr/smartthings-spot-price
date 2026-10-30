@@ -3,6 +3,7 @@
 
 import stSchema from 'st-schema'
 import { log as defaultLog } from '../log.js'
+import { deviceIdFor } from '../prices/regions.js'
 import { discoveryFields, deviceStateFor } from './devices.js'
 
 const { SchemaConnector, STBase, GlobalErrorTypes, DeviceErrorTypes } = stSchema
@@ -52,7 +53,7 @@ export function createSchemaHandler({
         .clientSecret(config.stClientSecret)
         .discoveryHandler((accessToken, response, body) => {
             for (const { region } of installations.get(body).regions) {
-                const fields = discoveryFields(region)
+                const fields = discoveryFields(region, config.profileId)
                 response.addDevice(fields.externalDeviceId, fields.friendlyName, fields.deviceHandlerType)
                     .manufacturerName(fields.manufacturerName)
                     .modelName(fields.modelName)
@@ -60,7 +61,7 @@ export function createSchemaHandler({
         })
         .stateRefreshHandler(async (accessToken, response, body) => {
             const { regions } = installations.get(body)
-            const byDeviceId = new Map(regions.map(entry => [discoveryFields(entry.region).externalDeviceId, entry]))
+            const byDeviceId = new Map(regions.map(entry => [deviceIdFor(entry.region), entry]))
             const requested = body.devices?.length
                 ? body.devices.map(device => device.externalDeviceId)
                 : [...byDeviceId.keys()]
@@ -68,7 +69,7 @@ export function createSchemaHandler({
             for (const id of requested) {
                 const entry = byDeviceId.get(id)
                 if (entry) {
-                    const { states } = deviceStateFor(entry, prices)
+                    const { states } = deviceStateFor(entry, prices, config.capability)
                     response.addDevice(id, states)
                 } else {
                     response.addDevice(id).setError('Unknown device', DeviceErrorTypes.DEVICE_DELETED)

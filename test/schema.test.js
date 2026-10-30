@@ -1,10 +1,10 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { createSchemaHandler } from '../src/schema/connector.js'
-import { CAPABILITY, PROFILE_ID, statesFor } from '../src/schema/devices.js'
+import { statesFor } from '../src/schema/devices.js'
 import { openStore } from '../src/store.js'
 
-const config = { stClientId: 'st-client', stClientSecret: 'st-secret' }
+const config = { stClientId: 'st-client', stClientSecret: 'st-secret', capability: 'ns.spotPrice', profileId: 'profile-1' }
 const quietLog = { info() {}, warn() {}, error() {} }
 
 function recordingLog() {
@@ -46,12 +46,12 @@ function setup({ prices = stubPrices(), log = quietLog, ...options } = {}) {
 
 test('statesFor computes price with VAT and reports offline without a price', () => {
     const current = { priceNoTax: 0.0812, rank: 7, start: new Date(0), end: new Date(900_000) }
-    assert.deepEqual(statesFor('FI', 25.5, current), [
-        { component: 'main', capability: CAPABILITY, attribute: 'price', value: 10.19, unit: 'c/kWh' },
-        { component: 'main', capability: CAPABILITY, attribute: 'rank', value: 7 },
+    assert.deepEqual(statesFor('FI', 25.5, current, config.capability), [
+        { component: 'main', capability: 'ns.spotPrice', attribute: 'price', value: 10.19, unit: 'c/kWh' },
+        { component: 'main', capability: 'ns.spotPrice', attribute: 'rank', value: 7 },
         { component: 'main', capability: 'st.healthCheck', attribute: 'healthStatus', value: 'online' },
     ])
-    assert.deepEqual(statesFor('FI', 25.5, null), [
+    assert.deepEqual(statesFor('FI', 25.5, null, config.capability), [
         { component: 'main', capability: 'st.healthCheck', attribute: 'healthStatus', value: 'offline' },
     ])
 })
@@ -85,13 +85,13 @@ test('discovery returns one device per installation region', async () => {
         {
             externalDeviceId: 'spot-price-FI',
             friendlyName: 'Spot Price FI',
-            deviceHandlerType: PROFILE_ID,
+            deviceHandlerType: 'profile-1',
             manufacturerInfo: { manufacturerName: 'spot-hinta.fi', modelName: 'Spot price FI' },
         },
         {
             externalDeviceId: 'spot-price-SE3',
             friendlyName: 'Spot Price SE3',
-            deviceHandlerType: PROFILE_ID,
+            deviceHandlerType: 'profile-1',
             manufacturerInfo: { manufacturerName: 'spot-hinta.fi', modelName: 'Spot price SE3' },
         },
     ])

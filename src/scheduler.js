@@ -48,7 +48,7 @@ export function createScheduler({
     async function push(installation) {
         const { id, callbackAuth, callbackUrls } = installation
         if (!callbackAuth || !callbackUrls) return 'skipped'
-        const deviceState = installation.regions.map(entry => deviceStateFor(entry, prices))
+        const deviceState = installation.regions.map(entry => deviceStateFor(entry, prices, config.capability))
         try {
             await new StateUpdateRequest(config.stClientId, config.stClientSecret).updateState(
                 callbackUrls,

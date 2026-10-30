@@ -10,7 +10,7 @@ Placeholders used throughout:
 | Placeholder | Meaning | Where it comes from |
 |-------------|---------|---------------------|
 | `<org>` | Developer organization id | `smartthings organizations` |
-| `<namespace>` | Your capability namespace (the reference one is `beachprepare14195`) | `smartthings capabilities:namespaces -O <org>` or the `capabilities:create` output |
+| `<namespace>` | Your capability namespace, only if you register your own capability (step 3.1) | `smartthings capabilities:namespaces -O <org>` or the `capabilities:create` output |
 | `<profileId>` | Device profile id | `deviceprofiles:create` output |
 | `<vid>` | Device presentation id | `deviceprofiles:create` output (`metadata.vid`) |
 | `<endpointAppId>` | Schema app id (`viper_…`) | `schema:create` output |
@@ -38,55 +38,68 @@ smartthings organizations          # note the id of your developer organization:
 
 The CLI's default context is **not** your developer organization. Pass
 `-O <org>` to every `capabilities*`, `deviceprofiles*` and `schema:create` command
-below; otherwise the capability ends up in a different, personal namespace.
+below; otherwise the profile (and your own capability, if you create one) ends up in a
+different, personal context.
 `presentation:*` and `invites:schema*` commands do not accept `-O`.
 
-## 3. Use your own namespace
+## 3. Capability
 
-Skip this section if you are the repo owner (namespace `beachprepare14195`).
-
-The capability id is `<namespace>.spotPrice`, and the namespace is assigned per
-account. The repo files reference the owner's namespace. Find every occurrence and
-replace it with yours once you know it (after step 4.1 at the latest):
+The connector reports `price` and `rank` through the custom capability
+`beachprepare14195.spotPrice` (version 1), registered by the reference deployment
+together with its presentation (detail view and Routine conditions). Use it as is:
+SmartThings capabilities can be referenced from other developers' device profiles, and
+the repo files and the `CAPABILITY` default already point at it. Check that your
+account can read it:
 
 ```sh
-grep -rn beachprepare14195 smartthings src
+smartthings capabilities beachprepare14195.spotPrice 1
 ```
 
-This covers `smartthings/capabilities/spotPrice.presentation.json`,
-`smartthings/profiles/spot-price.yaml`,
-`smartthings/profiles/spot-price.device-config.json` and the `CAPABILITY` constant in
-`src/schema/devices.js`. The device profile id (step 4.3) is the `PROFILE_ID` constant
-in the same file (it is sent as `deviceHandlerType` at discovery), so update it too.
+The shared capability ties your copy to the reference namespace: if it is removed,
+your devices lose their price and rank. Register your own (3.1) if that matters to you,
+if the check above fails, or if you want to change the attributes or presentation.
 
-## 4. Register capability, device profile and presentation
-
-Run from the repository root.
-
-### 4.1 Capability
+### 3.1 Own capability (optional)
 
 ```sh
 smartthings capabilities:create -O <org> -j -i smartthings/capabilities/spotPrice.json
 ```
 
-The output contains the id `<namespace>.spotPrice` (version 1). Then attach the
-presentation (detail view and Routine conditions for `price` and `rank`). The version
-is a flag, not a positional argument:
+The output contains the id `<namespace>.spotPrice` (version 1). Replace the reference
+namespace with yours in the repo files:
+
+```sh
+grep -rln beachprepare14195 smartthings | xargs sed -i '' 's/beachprepare14195/<namespace>/g'
+```
+
+This covers `smartthings/capabilities/spotPrice.presentation.json`,
+`smartthings/profiles/spot-price.yaml` and
+`smartthings/profiles/spot-price.device-config.json`. (`sed -i ''` is the macOS form;
+on Linux use `sed -i`.) Then attach the presentation. The version is a flag, not a
+positional argument:
 
 ```sh
 smartthings capabilities:presentation:create -O <org> <namespace>.spotPrice \
   --capability-version 1 -j -i smartthings/capabilities/spotPrice.presentation.json
 ```
 
-### 4.2 Device profile
+Set `CAPABILITY=<namespace>.spotPrice` in the server `.env` (step 6.3).
+
+## 4. Register device profile and presentation
+
+Run from the repository root. Every deployment needs its own device profile: SmartThings
+creates the devices from the profile id the connector sends at discovery.
+
+### 4.1 Device profile
 
 ```sh
 smartthings deviceprofiles:create -O <org> -y -i smartthings/profiles/spot-price.yaml
 ```
 
 Note the profile `id` (`<profileId>`) and `metadata.vid` (`<vid>`) from the output.
+`<profileId>` goes into `PROFILE_ID` in the server `.env` (step 6.3).
 
-### 4.3 Device presentation
+### 4.2 Device presentation
 
 The profile gets a `vid`, but no presentation exists behind it yet. Generate the
 default device config, trim it, and create it:
@@ -228,6 +241,8 @@ cp .env.example .env && chmod 600 .env
 | `OAUTH_CLIENT_SECRET` | yes | the `oAuthClientSecret` you generated |
 | `DB_PATH` | no (default `./data/spot-price.db`) | SQLite database file |
 | `SPOT_API_BASE` | no (default `https://api.spot-hinta.fi`) | price API base URL |
+| `PROFILE_ID` | no (default: the reference deployment's profile), but set it in any other deployment | `<profileId>` from `deviceprofiles:create` (step 4.1) |
+| `CAPABILITY` | no (default `beachprepare14195.spotPrice`) | `<namespace>.spotPrice` if you registered your own capability (step 3.1) |
 | `INVITE_URL` | no | current public invitation `acceptUrl`; `GET /invite` redirects to it (see 7.2) |
 
 The server refuses to start if a required variable is missing.

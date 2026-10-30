@@ -31,16 +31,12 @@ cloud connector with a custom capability. A hosted instance runs at
 The SmartThings app isn't published in the SmartThings catalog. You add it as a
 testing device after accepting an invitation.
 
-1. **Accept the invitation.** Open <https://spot-price.ctrldash.app/invite> in a
-   **desktop browser**, sign in with your Samsung account and accept. (Accepting on a
-   phone browser has failed in testing.)
-2. **Enable Developer mode** in the SmartThings app: open Settings, **long-press**
-   "About SmartThings" for 5–10 seconds, toggle Developer mode on and restart the app.
-   If a password prompt appears instead, cancel: that's a different, internal menu.
-3. **Add the device.** Add device → **My Testing Devices** → **Spot Price**. Tick the
-   price areas you want and set the VAT % for each (pre-filled with the area's standard
-   rate; enter 0 for prices without VAT). One Spot Price device is created per area.
-4. **Create Routines** with the device's `price` or `rank` as a condition.
+1. **Accept the invitation.** Open <https://spot-price.ctrldash.app/invite>. Sign in with
+   your Samsung account and accept the invite by clicking "Proceed". Choose the location
+   for the device. Tick the price areas you want and set the VAT % for each (pre-filled
+   with the area's standard rate; enter 0 for prices without VAT). One Spot Price device
+   is created per area.
+2. **Create Routines** with the device's `price` or `rank` as a condition.
 
 Good to know:
 
@@ -58,11 +54,14 @@ Good to know:
   chose and the tokens SmartThings needs to receive updates; nothing else about you.
 - The hosted connector is a hobby project with no uptime guarantee. If it's unreachable
   or prices are missing, the device shows as offline.
+- A desktop browser has been more reliable in accepting invites. A mobile browser has
+  sometimes run into "an unexpected error occurred" situation.
 
 ## Running your own connector
 
-Running your own copy means registering your own capability, device profile and Schema
-app in your SmartThings developer account, and hosting the connector at a public
+Running your own copy means registering your own device profile and Schema app in your
+SmartThings developer account (the custom capability is shared, so you don't need your
+own), and hosting the connector at a public
 HTTPS URL.
 
 Requirements:
@@ -79,7 +78,7 @@ npm start
 ```
 
 [docs/setup.md](docs/setup.md) covers the rest step by step: SmartThings registration,
-your own capability namespace, environment variables, deployment with pm2, invitations,
+the shared or your own capability, environment variables, deployment with pm2, invitations,
 and testing in the app.
 
 ## How it works
@@ -102,8 +101,9 @@ spot-hinta.fi ──(fetch per region, cached)──▶ connector (Node/Express)
 - **Prices:** fetched from spot-hinta.fi per area at 15-minute resolution, cached, and
   refetched when less than 12 hours of prices are known. The price is spot-hinta's
   price without tax, multiplied by (1 + VAT).
-- **Custom capability** `<namespace>.spotPrice`, defined in `smartthings/` and
-  registered with the SmartThings CLI.
+- **Custom capability** `beachprepare14195.spotPrice`, defined in `smartthings/` and
+  registered with the SmartThings CLI. Other deployments can use it as is, or register
+  their own and set `CAPABILITY`.
 
 ## Contributing
 
