@@ -131,6 +131,19 @@ export function openStore({ path: dbPath, now = Date.now } = {}) {
             db.prepare('DELETE FROM installations WHERE id = ?').run(id)
         },
 
+        // Linking abandoned after the area/VAT form: older than maxAgeMs and never got a token
+        // or callback credentials. Returns the deleted installation ids.
+        deleteAbandonedInstallations(maxAgeMs) {
+            return db.prepare(`
+                DELETE FROM installations
+                WHERE created_at <= ?
+                    AND callback_auth IS NULL
+                    AND id NOT IN (SELECT installation_id FROM access_tokens)
+                    AND id NOT IN (SELECT installation_id FROM refresh_tokens)
+                RETURNING id
+            `).all(now() - maxAgeMs).map(row => row.id)
+        },
+
         regionsInUse() {
             return db.prepare('SELECT DISTINCT region FROM installation_regions ORDER BY region')
                 .all()

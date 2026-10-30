@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { createScheduler, GONE_LIMIT, nextTickAt, QUARTER_HOUR_MS } from '../src/scheduler.js'
+import { ABANDONED_AFTER_MS, createScheduler, GONE_LIMIT, nextTickAt, QUARTER_HOUR_MS } from '../src/scheduler.js'
 import { openStore } from '../src/store.js'
 
 const config = { stClientId: 'st-client', stClientSecret: 'st-secret' }
@@ -144,6 +144,27 @@ test('a successful push resets the gone count', async () => {
     status = 404
     assert.deepEqual(await scheduler.pushAll(), ['failed'])
     assert.notEqual(store.getInstallation(id), null)
+})
+
+test('pushAll deletes abandoned linkings before choosing regions to fetch', async () => {
+    const clock = { now: T0 }
+    const store = openStore({ path: ':memory:', now: () => clock.now })
+    const ensured = []
+    const prices = { current: () => null, ensure: async regions => { ensured.push(regions) } }
+    const infos = []
+    const log = { ...quietLog, info: (message, fields) => infos.push({ message, ...fields }) }
+    const { FakeStateUpdateRequest } = fakeStateUpdateRequest()
+    const scheduler = createScheduler({ config, store, prices, now: () => clock.now, log, StateUpdateRequest: FakeStateUpdateRequest })
+    const abandoned = store.createInstallation([{ region: 'EE', vatPercent: 24 }])
+    link(store, [{ region: 'FI', vatPercent: 25.5 }], 'a')
+
+    clock.now += ABANDONED_AFTER_MS - 1
+    await scheduler.pushAll()
+    clock.now += 1
+    await scheduler.pushAll()
+    assert.deepEqual(ensured, [['EE', 'FI'], ['FI']])
+    assert.equal(store.getInstallation(abandoned), null)
+    assert.deepEqual(infos.filter(info => info.message.startsWith('Abandoned')).map(info => info.installationIds), [[abandoned]])
 })
 
 test('pushInstallation pushes one installation and ensures its regions', async () => {

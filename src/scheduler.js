@@ -19,6 +19,9 @@ export function nextTickAt(at, offsetMs = TICK_OFFSET_MS) {
 const GONE = new Set([404, 410])
 export const GONE_LIMIT = 3
 
+// Linking that hasn't reached the token exchange by then was abandoned (auth codes live 10 min)
+export const ABANDONED_AFTER_MS = 60 * 60 * 1000
+
 export function createScheduler({
     config,
     store,
@@ -74,7 +77,17 @@ export function createScheduler({
         }
     }
 
+    function deleteAbandoned() {
+        try {
+            const ids = store.deleteAbandonedInstallations(ABANDONED_AFTER_MS)
+            if (ids.length > 0) log.info('Abandoned installations deleted', { installationIds: ids })
+        } catch (error) {
+            log.error('Deleting abandoned installations failed', { error: error.message })
+        }
+    }
+
     async function pushAll() {
+        deleteAbandoned()
         await ensure(store.regionsInUse())
         const installations = store.listInstallationsWithCallbacks()
         const results = await Promise.all(installations.map(push))

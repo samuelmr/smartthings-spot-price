@@ -77,6 +77,30 @@ test('deleting an installation removes its regions, codes and tokens', () => {
     assert.equal(store.consumeRefreshToken('refresh'), null)
 })
 
+test('deletes old installations that never got tokens or callbacks', () => {
+    const { store, clock } = memoryStore()
+    const abandoned = store.createInstallation([{ region: 'FI', vatPercent: 25.5 }])
+    store.saveAuthCode('code', abandoned, 'https://st/cb', 60_000)
+    const withTokens = store.createInstallation([{ region: 'SE3', vatPercent: 25 }])
+    store.saveTokens(withTokens, 'access', 'refresh', 1000)
+    const withRefreshOnly = store.createInstallation([{ region: 'SE4', vatPercent: 25 }])
+    store.saveTokens(withRefreshOnly, 'access-2', 'refresh-2', 1000)
+    const withCallback = store.createInstallation([{ region: 'EE', vatPercent: 24 }])
+    store.setCallback(withCallback, { accessToken: 'a', refreshToken: 'r' }, { stateCallback: 'https://st/state' })
+
+    clock.now += 59_999
+    assert.deepEqual(store.deleteAbandonedInstallations(60_000), [])
+
+    clock.now += 1
+    store.deleteExpired() // access tokens gone; refresh tokens and callbacks still mark a completed link
+    const fresh = store.createInstallation([{ region: 'LV', vatPercent: 21 }])
+    assert.deepEqual(store.deleteAbandonedInstallations(60_000), [abandoned])
+    assert.equal(store.getInstallation(abandoned), null)
+    assert.equal(store.consumeAuthCode('code'), null)
+    assert.ok(store.getInstallation(fresh))
+    assert.deepEqual(store.regionsInUse(), ['EE', 'LV', 'SE3', 'SE4'])
+})
+
 test('a failed installation insert leaves nothing behind', () => {
     const { store } = memoryStore()
     assert.throws(() => store.createInstallation([
