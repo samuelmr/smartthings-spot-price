@@ -1,7 +1,8 @@
 import express from 'express'
+import { createOAuthRouter } from './oauth/router.js'
 
-// Routers for /oauth (Phase 4) and /st-schema (Phase 5) are mounted here
-export function createApp({ store }) {
+// config (enables /oauth) and schemaHandler are optional so /healthz can be tested alone
+export function createApp({ config, store, schemaHandler }) {
     const app = express()
     app.disable('x-powered-by')
     app.set('trust proxy', 'loopback')
@@ -16,6 +17,13 @@ export function createApp({ store }) {
             res.status(503).send('db unavailable')
         }
     })
+
+    if (config) {
+        app.use('/oauth', createOAuthRouter({ config, store }))
+    }
+    if (schemaHandler) {
+        app.post('/st-schema', schemaHandler)
+    }
 
     return app
 }

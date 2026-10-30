@@ -55,10 +55,9 @@ grep -rn beachprepare14195 smartthings src
 
 This covers `smartthings/capabilities/spotPrice.presentation.json`,
 `smartthings/profiles/spot-price.yaml`,
-`smartthings/profiles/spot-price.device-config.json` and the capability id
-constant in the connector code. The device profile id (step 4.3) is also a constant
-in the connector code (it is sent as `deviceHandlerType` at discovery), so update it
-too.
+`smartthings/profiles/spot-price.device-config.json` and the `CAPABILITY` constant in
+`src/schema/devices.js`. The device profile id (step 4.3) is the `PROFILE_ID` constant
+in the same file (it is sent as `deviceHandlerType` at discovery), so update it too.
 
 ## 4. Register capability, device profile and presentation
 
@@ -249,8 +248,7 @@ pm2 save                           # optional: keep it in pm2's saved process li
 ```
 
 The pm2 app is named `Spot price connector` and runs `src/server.js` with `.env`
-loaded. (Until the integration step, `ecosystem.config.cjs` points at the Phase 0
-`spike/server.js` instead.)
+loaded.
 
 The SQLite database (`DB_PATH`) holds the linked installations and their tokens.
 Back it up if you don't want to re-link after losing the server.

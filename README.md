@@ -16,6 +16,16 @@ Use these values as conditions in ordinary SmartThings Routines, for example:
 - *If Spot Price FI price is above 20 c/kWh, set the thermostat to 19 °C.*
 - *If Spot Price FI rank is 16 or lower, turn on the water heater.*
 
+Good to know:
+
+- Price areas and VAT are chosen when you link the integration. To change them, remove
+  the integration and add it again. The devices are recreated, so Routines that use them
+  must be rebuilt.
+- `rank` is spot-hinta's rank within the calendar day (in the area's time zone) and
+  restarts at midnight. Equal prices still get distinct ranks, so rank can change while the
+  price stays the same.
+- Routine conditions fire when a value crosses the threshold, not while it stays beyond it.
+
 Price data comes from [spot-hinta.fi](https://spot-hinta.fi/), which supports these areas:
 FI, EE, LV, LT, SE1–SE4, NO1–NO5, DK1 and DK2.
 
@@ -76,7 +86,7 @@ npm start
 ```
 
 Registering the capability, device profile and Schema app with SmartThings is
-covered in `docs/setup.md` (to be written).
+covered in [docs/setup.md](docs/setup.md).
 
 ## License
 

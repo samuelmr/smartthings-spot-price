@@ -68,9 +68,13 @@ test('parseVatPercent accepts 0–50 with dot or comma', () => {
 test('only https SmartThings callback hosts are allowed as redirect_uri', () => {
     assert.ok(isSmartThingsRedirect(REDIRECT))
     assert.ok(isSmartThingsRedirect('https://c2c-us.smartthingsgcp.com/oauth/callback'))
+    assert.ok(isSmartThingsRedirect('https://c2c-eu.smartthings.com/oauth/callback'))
     for (const bad of [
         'http://c2c-eu.smartthingsgcp.com/oauth/callback',
         'https://c2c-eu.smartthingsgcp.com.evil.example/oauth/callback',
+        'https://c2c-eu.smartthings.com.evil.example/oauth/callback',
+        'https://c2c-eu.smartthingsxcom/oauth/callback',
+        'https://eu.smartthings.com/oauth/callback',
         'https://evil.example/?c2c-eu.smartthingsgcp.com',
         'https://user@c2c-eu.smartthingsgcp.com/oauth/callback',
         'https://c2c-eu.smartthingsgcp.com:8443/oauth/callback',

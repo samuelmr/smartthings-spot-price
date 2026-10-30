@@ -4,7 +4,7 @@ module.exports = {
     apps: [
         {
             name: 'Spot price connector',
-            script: 'spike/server.js',
+            script: 'src/server.js',
             node_args: '--env-file-if-exists=.env',
             env: {
                 PORT: 7768,

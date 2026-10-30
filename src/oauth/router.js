@@ -8,8 +8,10 @@ import { getRegion } from '../prices/regions.js'
 import { MAX_VAT_PERCENT, renderAuthorizePage, renderErrorPage } from './form.js'
 import { issueAuthCode, issueTokens, safeEqual } from './tokens.js'
 
-// SmartThings' regional OAuth callback hosts (c2c-us, c2c-eu, c2c-ap, c2c-globals, ...)
-const SMARTTHINGS_REDIRECT_HOST = /^c2c-[a-z0-9-]+\.smartthingsgcp\.com$/
+// SmartThings' regional OAuth callback hosts (c2c-us, c2c-eu, c2c-ap, ...). Linking was
+// observed with https://c2c-eu.smartthings.com/oauth/callback; smartthingsgcp.com is
+// the documented older domain.
+const SMARTTHINGS_REDIRECT_HOST = /^c2c-[a-z0-9-]+\.smartthings(gcp)?\.com$/
 
 export function isSmartThingsRedirect(redirectUri) {
     let url
