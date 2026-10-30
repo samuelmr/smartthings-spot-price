@@ -10,13 +10,17 @@
   "scripts": {
     "start": "node --env-file-if-exists=.env src/server.js",
     "dev": "node --watch --env-file-if-exists=.env src/server.js",
-    "test": "node --test",
-    "spike": "node --env-file-if-exists=.env spike/server.js"
+    "test": "node --test"
   },
   "author": "Samuel Rinnetmäki <samuel@iki.fi>",
   "license": "Apache-2.0",
   "dependencies": {
     "express": "^5.1.0",
     "st-schema": "^1.5.2"
+  },
+  "homepage": "https://github.com/samuelmr/smartthings-spot-price#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/samuelmr/smartthings-spot-price.git"
   }
 }

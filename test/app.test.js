@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { createApp } from '../src/app.js'
+import { createApp, HOMEPAGE } from '../src/app.js'
 import { openStore } from '../src/store.js'
 
 async function withServer(store, fn) {
@@ -12,6 +12,15 @@ async function withServer(store, fn) {
         server.close()
     }
 }
+
+test('root redirects to the project homepage', async () => {
+    const store = openStore({ path: ':memory:' })
+    await withServer(store, async baseUrl => {
+        const resp = await fetch(`${baseUrl}/`, { redirect: 'manual' })
+        assert.equal(resp.status, 302)
+        assert.equal(resp.headers.get('location'), HOMEPAGE)
+    })
+})
 
 test('healthz reports ok when the database responds', async () => {
     const store = openStore({ path: ':memory:' })
