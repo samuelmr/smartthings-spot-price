@@ -1,0 +1,41 @@
+{
+  "name": "Spot Price",
+  "attributes": {
+    "price": {
+      "schema": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": "number",
+            "minimum": -1000,
+            "maximum": 10000
+          },
+          "unit": {
+            "type": "string",
+            "enum": ["c/kWh"],
+            "default": "c/kWh"
+          }
+        },
+        "additionalProperties": false,
+        "required": ["value"]
+      },
+      "enumCommands": []
+    },
+    "rank": {
+      "schema": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100
+          }
+        },
+        "additionalProperties": false,
+        "required": ["value"]
+      },
+      "enumCommands": []
+    }
+  },
+  "commands": {}
+}

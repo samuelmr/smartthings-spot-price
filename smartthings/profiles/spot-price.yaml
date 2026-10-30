@@ -1,0 +1,12 @@
+name: Spot Price
+components:
+  - id: main
+    capabilities:
+      - id: beachprepare14195.spotPrice
+        version: 1
+      - id: healthCheck
+        version: 1
+    categories:
+      - name: Others
+metadata:
+  ocfDeviceType: oic.wk.d

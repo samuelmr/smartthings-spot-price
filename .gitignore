@@ -4,3 +4,4 @@ node_modules/
 *.db-journal
 data/
 .DS_Store
+*.local.yaml

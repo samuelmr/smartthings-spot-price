@@ -1,0 +1,37 @@
+{
+  "dashboard": {
+    "states": [
+      {
+        "component": "main",
+        "capability": "beachprepare14195.spotPrice",
+        "version": 1,
+        "values": []
+      }
+    ],
+    "actions": [],
+    "basicPlus": []
+  },
+  "detailView": [
+    {
+      "component": "main",
+      "capability": "beachprepare14195.spotPrice",
+      "version": 1,
+      "values": [],
+      "patch": []
+    }
+  ],
+  "automation": {
+    "conditions": [
+      {
+        "component": "main",
+        "capability": "beachprepare14195.spotPrice",
+        "version": 1,
+        "values": [],
+        "patch": [],
+        "exclusion": []
+      }
+    ],
+    "actions": []
+  },
+  "type": "profile"
+}

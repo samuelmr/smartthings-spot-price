@@ -1,0 +1,52 @@
+{
+  "dashboard": {
+    "states": [
+      {
+        "label": "{{price.value}} {{price.unit}}"
+      }
+    ],
+    "actions": []
+  },
+  "detailView": [
+    {
+      "label": "Price",
+      "displayType": "state",
+      "state": {
+        "label": "{{price.value}} {{price.unit}}"
+      }
+    },
+    {
+      "label": "Rank",
+      "displayType": "state",
+      "state": {
+        "label": "{{rank.value}}"
+      }
+    }
+  ],
+  "automation": {
+    "conditions": [
+      {
+        "label": "Price",
+        "displayType": "numberField",
+        "numberField": {
+          "value": "price.value",
+          "valueType": "number",
+          "unit": "price.unit",
+          "range": [-1000, 10000]
+        }
+      },
+      {
+        "label": "Rank",
+        "displayType": "numberField",
+        "numberField": {
+          "value": "rank.value",
+          "valueType": "integer",
+          "range": [1, 100]
+        }
+      }
+    ],
+    "actions": []
+  },
+  "id": "beachprepare14195.spotPrice",
+  "version": 1
+}
