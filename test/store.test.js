@@ -63,6 +63,32 @@ test('access tokens expire and refresh tokens rotate', () => {
     assert.equal(store.consumeRefreshToken('refresh-1'), null)
 })
 
+test('remembers expired access tokens for a week', () => {
+    const { store, clock } = memoryStore()
+    const id = store.createInstallation([{ region: 'FI', vatPercent: 25.5 }])
+    store.saveTokens(id, 'access-1', 'refresh-1', 1000)
+    assert.deepEqual(store.checkAccessToken('access-1'), { status: 'valid', installationId: id })
+    assert.deepEqual(store.checkAccessToken('nope'), { status: 'unknown' })
+
+    clock.now += 1000
+    assert.deepEqual(store.checkAccessToken('access-1'), { status: 'expired' })
+    store.deleteExpired()
+    assert.deepEqual(store.checkAccessToken('access-1'), { status: 'expired' })
+
+    clock.now += 7 * 24 * 60 * 60 * 1000 - 1
+    store.deleteExpired()
+    assert.deepEqual(store.checkAccessToken('access-1'), { status: 'expired' })
+    clock.now += 1
+    store.deleteExpired()
+    assert.deepEqual(store.checkAccessToken('access-1'), { status: 'unknown' })
+
+    store.saveTokens(id, 'access-2', 'refresh-2', 1000)
+    clock.now += 1000
+    store.deleteExpired()
+    store.deleteInstallation(id)
+    assert.deepEqual(store.checkAccessToken('access-2'), { status: 'unknown' })
+})
+
 test('deleting an installation removes its regions, codes and tokens', () => {
     const { store } = memoryStore()
     const id = store.createInstallation([{ region: 'FI', vatPercent: 25.5 }])

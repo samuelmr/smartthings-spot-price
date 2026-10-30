@@ -40,7 +40,17 @@ const MIGRATIONS = [
     `
     ALTER TABLE installations ADD COLUMN gone_count INTEGER NOT NULL DEFAULT 0;
     `,
+    `
+    CREATE TABLE expired_access_tokens (
+        token_hash TEXT PRIMARY KEY,
+        installation_id TEXT NOT NULL REFERENCES installations(id) ON DELETE CASCADE,
+        expires_at INTEGER NOT NULL
+    );
+    `,
 ]
+
+// How long an expired access token is remembered, to tell it apart from an unknown one
+const EXPIRED_TOKEN_RETENTION_MS = 7 * 24 * 60 * 60 * 1000
 
 const hash = value => crypto.createHash('sha256').update(value).digest('hex')
 
@@ -183,6 +193,20 @@ export function openStore({ path: dbPath, now = Date.now } = {}) {
             return row.installation_id
         },
 
+        // 'valid' (with installationId), 'expired' (a token we issued that has since expired)
+        // or 'unknown' (never issued, forgotten, or its installation was deleted)
+        checkAccessToken(accessToken) {
+            const tokenHash = hash(accessToken)
+            const row = db.prepare('SELECT installation_id, expires_at FROM access_tokens WHERE token_hash = ?').get(tokenHash)
+            if (row) {
+                return row.expires_at <= now()
+                    ? { status: 'expired' }
+                    : { status: 'valid', installationId: row.installation_id }
+            }
+            const expired = db.prepare('SELECT 1 FROM expired_access_tokens WHERE token_hash = ?').get(tokenHash)
+            return { status: expired ? 'expired' : 'unknown' }
+        },
+
         // Single use (rotated on refresh): returns the installation id or null
         consumeRefreshToken(refreshToken) {
             return transaction(() => {
@@ -196,7 +220,14 @@ export function openStore({ path: dbPath, now = Date.now } = {}) {
         deleteExpired() {
             const at = now()
             db.prepare('DELETE FROM auth_codes WHERE expires_at <= ?').run(at)
-            db.prepare('DELETE FROM access_tokens WHERE expires_at <= ?').run(at)
+            transaction(() => {
+                db.prepare(`
+                    INSERT OR IGNORE INTO expired_access_tokens (token_hash, installation_id, expires_at)
+                    SELECT token_hash, installation_id, expires_at FROM access_tokens WHERE expires_at <= ?
+                `).run(at)
+                db.prepare('DELETE FROM access_tokens WHERE expires_at <= ?').run(at)
+                db.prepare('DELETE FROM expired_access_tokens WHERE expires_at <= ?').run(at - EXPIRED_TOKEN_RETENTION_MS)
+            })
         },
     }
 }

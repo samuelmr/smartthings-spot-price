@@ -76,7 +76,7 @@ test('link FI + SE3, then discover and refresh state through the app', async () 
         assert.equal(byId['spot-price-SE3'].find(state => state.attribute === 'healthStatus').value, 'offline')
 
         const rejected = await (await post('/st-schema', schemaRequest('discoveryRequest', 'bogus'))).json()
-        assert.equal(rejected.globalError.errorEnum, 'TOKEN-EXPIRED')
+        assert.equal(rejected.globalError.errorEnum, 'INVALID-TOKEN')
     } finally {
         server.close()
         store.close()

@@ -119,13 +119,16 @@ export function createSchemaHandler({
             return done(globalError(body?.headers, 'Invalid ST Schema request', GlobalErrorTypes.BAD_REQUEST), null, 'warn')
         }
 
-        // Unknown and expired tokens look the same in the store. TOKEN-EXPIRED makes
-        // SmartThings refresh; if the refresh token is gone too, the link has to be redone.
-        const installationId = store.findInstallationIdByAccessToken(body.authentication.token)
-        const installation = installationId && store.getInstallation(installationId)
-        if (!installation) {
-            return done(globalError(body.headers, 'Token expired or invalid', GlobalErrorTypes.TOKEN_EXPIRED), null, 'warn')
+        // TOKEN-EXPIRED makes SmartThings refresh; INVALID-TOKEN means the link has to be redone.
+        const token = store.checkAccessToken(body.authentication.token)
+        if (token.status === 'expired') {
+            return done(globalError(body.headers, 'Token expired', GlobalErrorTypes.TOKEN_EXPIRED), null, 'warn')
         }
+        const installation = token.status === 'valid' && store.getInstallation(token.installationId)
+        if (!installation) {
+            return done(globalError(body.headers, 'Token invalid', GlobalErrorTypes.INVALID_TOKEN), null, 'warn')
+        }
+        const installationId = installation.id
         installations.set(body, installation)
 
         // The SDK returns thrown errors (e.g. a failed callback token exchange) instead of rejecting
