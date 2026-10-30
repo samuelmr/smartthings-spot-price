@@ -1,0 +1,21 @@
+{
+  "name": "smartthings-spot-price",
+  "version": "0.1.0",
+  "description": "SmartThings ST Schema connector exposing Nordic/Baltic electricity spot prices as devices",
+  "type": "module",
+  "main": "src/server.js",
+  "engines": {
+    "node": ">=22.5"
+  },
+  "scripts": {
+    "start": "node --env-file-if-exists=.env src/server.js",
+    "dev": "node --watch --env-file-if-exists=.env src/server.js",
+    "test": "node --test"
+  },
+  "author": "Samuel Rinnetmäki <samuel@iki.fi>",
+  "license": "Apache-2.0",
+  "dependencies": {
+    "express": "^5.1.0",
+    "st-schema": "^1.5.2"
+  }
+}
