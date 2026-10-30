@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { createScheduler, nextTickAt, QUARTER_HOUR_MS } from '../src/scheduler.js'
+import { createScheduler, GONE_LIMIT, nextTickAt, QUARTER_HOUR_MS } from '../src/scheduler.js'
 import { openStore } from '../src/store.js'
 
 const config = { stClientId: 'st-client', stClientSecret: 'st-secret' }
@@ -94,7 +94,7 @@ test('refreshed callback tokens are persisted and urls kept', async () => {
     assert.deepEqual(installation.callbackUrls, urls('a'))
 })
 
-test('404/410 deletes the installation; other failures are isolated and logged', async () => {
+test('404/410 deletes the installation after repeated answers; other failures are isolated and logged', async () => {
     const warnings = []
     const errors = []
     const log = { info() {}, warn: (message, fields) => warnings.push({ message, ...fields }), error: (message, fields) => errors.push({ message, ...fields }) }
@@ -111,16 +111,39 @@ test('404/410 deletes the installation; other failures are isolated and logged',
     const broken = link(store, [{ region: 'FI', vatPercent: 25.5 }], 'broken')
     const fine = link(store, [{ region: 'FI', vatPercent: 25.5 }], 'fine')
 
+    for (let i = 1; i < GONE_LIMIT; i++) {
+        assert.deepEqual(await scheduler.pushAll(), ['failed', 'failed', 'failed', 'ok'])
+        assert.equal(store.getInstallation(gone).goneCount, i)
+    }
     const results = await scheduler.pushAll()
     assert.deepEqual(results, ['deleted', 'deleted', 'failed', 'ok'])
-    assert.equal(calls.length, 4)
+    assert.equal(calls.length, 4 * GONE_LIMIT)
     assert.equal(store.getInstallation(gone), null)
     assert.equal(store.getInstallation(deleted), null)
     assert.notEqual(store.getInstallation(broken), null)
     assert.notEqual(store.getInstallation(fine), null)
-    assert.deepEqual(warnings.map(warning => warning.installationId), [gone, deleted])
-    assert.deepEqual(errors.map(error => [error.installationId, error.statusCode]), [[broken, 500]])
+    assert.deepEqual(warnings.slice(-2).map(warning => warning.installationId), [gone, deleted])
+    assert.equal(warnings.length, 2 * GONE_LIMIT)
+    assert.deepEqual(errors.slice(0, 1).map(error => [error.installationId, error.statusCode]), [[broken, 500]])
     assert.equal(JSON.stringify([warnings, errors]).includes('-access'), false)
+})
+
+test('a successful push resets the gone count', async () => {
+    let status = 404
+    const { store, scheduler } = setup({
+        behaviour: async () => { if (status) throw { statusCode: status, message: 'gone' } },
+    })
+    const id = link(store, [{ region: 'FI', vatPercent: 25.5 }], 'a')
+    for (let i = 1; i < GONE_LIMIT; i++) await scheduler.pushAll()
+    assert.equal(store.getInstallation(id).goneCount, GONE_LIMIT - 1)
+
+    status = 0
+    assert.deepEqual(await scheduler.pushAll(), ['ok'])
+    assert.equal(store.getInstallation(id).goneCount, 0)
+
+    status = 404
+    assert.deepEqual(await scheduler.pushAll(), ['failed'])
+    assert.notEqual(store.getInstallation(id), null)
 })
 
 test('pushInstallation pushes one installation and ensures its regions', async () => {

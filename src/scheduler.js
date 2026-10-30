@@ -14,8 +14,10 @@ export function nextTickAt(at, offsetMs = TICK_OFFSET_MS) {
     return next > at ? next : next + QUARTER_HOUR_MS
 }
 
-// SmartThings answers these when the integration no longer exists
+// SmartThings answers these when the integration no longer exists. A single answer could
+// be a SmartThings glitch, so delete only after this many consecutive ones (~45 min).
 const GONE = new Set([404, 410])
+export const GONE_LIMIT = 3
 
 export function createScheduler({
     config,
@@ -54,12 +56,18 @@ export function createScheduler({
                     log.info('Callback token refreshed', { installationId: id })
                 },
             )
+            store.resetGone(id)
             return 'ok'
         } catch (error) {
             if (GONE.has(error?.statusCode)) {
-                store.deleteInstallation(id)
-                log.warn('Integration gone, installation deleted', { installationId: id, statusCode: error.statusCode })
-                return 'deleted'
+                const count = store.recordGone(id)
+                if (count >= GONE_LIMIT) {
+                    store.deleteInstallation(id)
+                    log.warn('Integration gone, installation deleted', { installationId: id, statusCode: error.statusCode, count })
+                    return 'deleted'
+                }
+                log.warn('Integration gone?', { installationId: id, statusCode: error.statusCode, count, limit: GONE_LIMIT })
+                return 'failed'
             }
             log.error('State push failed', { installationId: id, statusCode: error?.statusCode, error: error?.message ?? String(error) })
             return 'failed'

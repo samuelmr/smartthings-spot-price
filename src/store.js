@@ -37,6 +37,9 @@ const MIGRATIONS = [
         installation_id TEXT NOT NULL REFERENCES installations(id) ON DELETE CASCADE
     );
     `,
+    `
+    ALTER TABLE installations ADD COLUMN gone_count INTEGER NOT NULL DEFAULT 0;
+    `,
 ]
 
 const hash = value => crypto.createHash('sha256').update(value).digest('hex')
@@ -76,6 +79,7 @@ export function openStore({ path: dbPath, now = Date.now } = {}) {
             regions: regionsOf(row.id),
             callbackAuth: row.callback_auth ? JSON.parse(row.callback_auth) : null,
             callbackUrls: row.callback_urls ? JSON.parse(row.callback_urls) : null,
+            goneCount: row.gone_count,
         }
     }
 
@@ -111,6 +115,16 @@ export function openStore({ path: dbPath, now = Date.now } = {}) {
         setCallback(id, callbackAuth, callbackUrls) {
             db.prepare('UPDATE installations SET callback_auth = ?, callback_urls = COALESCE(?, callback_urls) WHERE id = ?')
                 .run(JSON.stringify(callbackAuth), callbackUrls ? JSON.stringify(callbackUrls) : null, id)
+        },
+
+        // Consecutive "integration gone" answers from SmartThings; returns the new count
+        recordGone(id) {
+            db.prepare('UPDATE installations SET gone_count = gone_count + 1 WHERE id = ?').run(id)
+            return db.prepare('SELECT gone_count FROM installations WHERE id = ?').get(id)?.gone_count ?? 0
+        },
+
+        resetGone(id) {
+            db.prepare('UPDATE installations SET gone_count = 0 WHERE id = ? AND gone_count > 0').run(id)
         },
 
         deleteInstallation(id) {
