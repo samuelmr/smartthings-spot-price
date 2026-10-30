@@ -1,6 +1,7 @@
-# Input for `smartthings schema:create -y -i smartthings/schema-app.yaml`.
-# oAuthClientId/oAuthClientSecret must match OAUTH_CLIENT_ID/OAUTH_CLIENT_SECRET in
-# the connector's .env; fill them in locally, do not commit them.
+# Template for `smartthings schema:create -O <org> -i smartthings/schema-app.local.yaml -j`.
+# Copy to schema-app.local.yaml (gitignored) and fill in oAuthClientId/oAuthClientSecret
+# there; they must match OAUTH_CLIENT_ID/OAUTH_CLIENT_SECRET in the connector's .env.
+# See docs/setup.md.
 appName: Spot Price
 partnerName: ctrldash.app
 userEmail: samuel@iki.fi
