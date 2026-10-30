@@ -128,7 +128,12 @@ test('fetchPrices times out a hanging request', async () => {
     let calls = 0
     const fetch = (url, { signal }) => {
         calls++
-        return new Promise((resolve, reject) => signal.addEventListener('abort', () => reject(signal.reason)))
+        // AbortSignal.timeout() is unref'd; a real request's socket keeps the event loop alive
+        const keepAlive = setTimeout(() => {}, 60_000)
+        return new Promise((resolve, reject) => signal.addEventListener('abort', () => {
+            clearTimeout(keepAlive)
+            reject(signal.reason)
+        }))
     }
     await assert.rejects(fetchPrices('FI', { apiBase: 'https://api.test', fetch, timeoutMs: 10, retryDelayMs: 0 }), /Request failed/)
     assert.equal(calls, 2)
