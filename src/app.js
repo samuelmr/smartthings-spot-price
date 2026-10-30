@@ -13,6 +13,15 @@ export function createApp({ config, store, schemaHandler }) {
 
     app.get('/', (req, res) => res.redirect(HOMEPAGE))
 
+    // stable public link to the current tester invitation, which expires and gets replaced
+    app.get('/invite', (req, res) => {
+        if (config?.inviteUrl) {
+            res.redirect(config.inviteUrl)
+        } else {
+            res.status(404).type('text').send('No invitation available. See ' + HOMEPAGE)
+        }
+    })
+
     app.get('/healthz', (req, res) => {
         try {
             store.ping()

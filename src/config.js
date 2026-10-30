@@ -18,5 +18,6 @@ export function loadConfig(env = process.env) {
         oauthClientSecret: env.OAUTH_CLIENT_SECRET,
         dbPath: env.DB_PATH || './data/spot-price.db',
         spotApiBase: (env.SPOT_API_BASE || 'https://api.spot-hinta.fi').replace(/\/$/, ''),
+        inviteUrl: env.INVITE_URL || null,
     }
 }

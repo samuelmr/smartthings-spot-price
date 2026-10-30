@@ -3,8 +3,8 @@ import { test } from 'node:test'
 import { createApp, HOMEPAGE } from '../src/app.js'
 import { openStore } from '../src/store.js'
 
-async function withServer(store, fn) {
-    const server = createApp({ store }).listen(0)
+async function withServer(store, fn, config) {
+    const server = createApp({ store, config }).listen(0)
     await new Promise(resolve => server.once('listening', resolve))
     try {
         await fn(`http://localhost:${server.address().port}`)
@@ -19,6 +19,24 @@ test('root redirects to the project homepage', async () => {
         const resp = await fetch(`${baseUrl}/`, { redirect: 'manual' })
         assert.equal(resp.status, 302)
         assert.equal(resp.headers.get('location'), HOMEPAGE)
+    })
+})
+
+test('invite redirects to the configured invitation', async () => {
+    const store = openStore({ path: ':memory:' })
+    const inviteUrl = 'https://invitations.smartthings.com/schemaApp/abc'
+    await withServer(store, async baseUrl => {
+        const resp = await fetch(`${baseUrl}/invite`, { redirect: 'manual' })
+        assert.equal(resp.status, 302)
+        assert.equal(resp.headers.get('location'), inviteUrl)
+    }, { inviteUrl })
+})
+
+test('invite is 404 when no invitation is configured', async () => {
+    const store = openStore({ path: ':memory:' })
+    await withServer(store, async baseUrl => {
+        const resp = await fetch(`${baseUrl}/invite`, { redirect: 'manual' })
+        assert.equal(resp.status, 404)
     })
 })
 

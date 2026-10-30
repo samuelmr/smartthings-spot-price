@@ -16,6 +16,7 @@ test('applies defaults and trims trailing slashes', () => {
     assert.equal(config.port, 7768)
     assert.equal(config.dbPath, './data/spot-price.db')
     assert.equal(config.spotApiBase, 'https://api.spot-hinta.fi')
+    assert.equal(config.inviteUrl, null)
 })
 
 test('lists all missing required variables', () => {

@@ -228,6 +228,7 @@ cp .env.example .env && chmod 600 .env
 | `OAUTH_CLIENT_SECRET` | yes | the `oAuthClientSecret` you generated |
 | `DB_PATH` | no (default `./data/spot-price.db`) | SQLite database file |
 | `SPOT_API_BASE` | no (default `https://api.spot-hinta.fi`) | price API base URL |
+| `INVITE_URL` | no | current public invitation `acceptUrl`; `GET /invite` redirects to it (see 7.2) |
 
 The server refuses to start if a required variable is missing.
 
@@ -271,16 +272,25 @@ opens: tick the price areas and set VAT % for each, then submit. One Spot Price
 device is created per area.
 
 "My Testing Devices" only lists Schema apps owned by the Samsung account signed in
-to the app. To test with a different account, create a single-use invitation:
+to the app. Other accounts need an invitation. For a single person, set
+`"acceptLimit": 1`; leave it out for a public invitation (the API then allows 500
+acceptances):
 
 ```sh
 cat > invite.json <<'EOF'
-{ "schemaAppId": "<endpointAppId>", "description": "Spot Price tester", "acceptLimit": 1 }
+{ "schemaAppId": "<endpointAppId>", "description": "Spot Price (public invitation)" }
 EOF
 smartthings invites:schema:create -i invite.json
 ```
 
-Open the returned `acceptUrl` in a browser where you can sign in with the other Samsung
+Invitations expire after 30 days. To keep a stable public link, put the current
+`acceptUrl` in `INVITE_URL` in the server `.env` and `pm2 reload` the connector:
+`https://<host>/invite` then redirects to it. Before the invitation expires, create a
+new one, update `INVITE_URL`, reload, and delete the old invitation. Revoking an
+invitation is not documented to affect accounts that already accepted it, but to be
+safe the reference deployment keeps its owner's own invitation until it expires.
+
+Open the `acceptUrl` in a browser where you can sign in with the other Samsung
 account and accept. Opening it in Chrome on iPhone failed with "An unexpected error
 occurred"; desktop Chrome worked. Acceptance applies to the account, so the phone app
 then shows the Schema app under My Testing Devices. An invitation may also stop working
