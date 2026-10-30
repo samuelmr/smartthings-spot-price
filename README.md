@@ -19,8 +19,9 @@ Use these values as conditions in ordinary SmartThings Routines, for example:
 Good to know:
 
 - Price areas and VAT are chosen when you link the integration. To change them, remove
-  the integration and add it again. The devices are recreated, so Routines that use them
-  must be rebuilt.
+  the integration and add it again. The devices are recreated; the SmartThings app flags
+  Routines that used them and lets you swap in the new device.
+- For prices without VAT, enter 0 as the VAT.
 - `rank` is spot-hinta's rank within the calendar day (in the area's time zone) and
   restarts at midnight. Equal prices still get distinct ranks, so rank can change while the
   price stays the same.

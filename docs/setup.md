@@ -280,7 +280,11 @@ EOF
 smartthings invites:schema:create -i invite.json
 ```
 
-Open the returned `acceptUrl` on the phone while signed in with the other account.
+Open the returned `acceptUrl` in a browser where you can sign in with the other Samsung
+account and accept. Opening it in Chrome on iPhone failed with "An unexpected error
+occurred"; desktop Chrome worked. Acceptance applies to the account, so the phone app
+then shows the Schema app under My Testing Devices. An invitation may also stop working
+after you remove the integration; create a new one if My Testing Devices is empty again.
 List and revoke invitations with:
 
 ```sh
@@ -313,4 +317,5 @@ testing Routines:
 ## 8. Changing price areas or VAT
 
 There is no settings page. To change the areas or VAT, remove the integration in the
-SmartThings app and link it again (step 7.2). The devices are recreated, so Routines that use them must be rebuilt.
+SmartThings app and link it again (step 7.2). The devices are recreated. Routines that used them are flagged as having issues, and the
+app offers to replace the missing device with the new one.
