@@ -3,7 +3,7 @@
 # the connector's .env; fill them in locally, do not commit them.
 appName: Spot Price
 partnerName: ctrldash.app
-userEmail: REPLACE_ME
+userEmail: samuel@iki.fi
 schemaType: st-schema
 hostingType: webhook
 webhookUrl: https://spot-price.ctrldash.app/st-schema

@@ -62,7 +62,7 @@ test/                 node:test unit tests
 
 ## Requirements
 
-- Node.js 22.5 or newer (uses the built-in `node:sqlite` and `node:test`)
+- Node.js 22.13 or newer (uses the built-in `node:sqlite` and `node:test`)
 - A public HTTPS URL for the connector
 - [SmartThings CLI](https://github.com/SmartThingsCommunity/smartthings-cli) and a
   SmartThings developer account
