@@ -120,11 +120,15 @@ export function createSchemaHandler({
         }
 
         // TOKEN-EXPIRED makes SmartThings refresh; INVALID-TOKEN means the link has to be redone.
+        // An unknown token may still be refreshable while legacy installations exist (see checkAccessToken).
         const token = store.checkAccessToken(body.authentication.token)
-        if (token.status === 'expired') {
-            return done(globalError(body.headers, 'Token expired', GlobalErrorTypes.TOKEN_EXPIRED), null, 'warn')
+        if (token.status === 'expired' || token.legacy) {
+            return done(globalError(body.headers, 'Token expired', GlobalErrorTypes.TOKEN_EXPIRED), token.installationId ?? null, 'warn')
         }
         const installation = token.status === 'valid' && store.getInstallation(token.installationId)
+        if (token.status === 'valid' && !installation) {
+            log.error('Valid access token without an installation', { installationId: token.installationId })
+        }
         if (!installation) {
             return done(globalError(body.headers, 'Token invalid', GlobalErrorTypes.INVALID_TOKEN), null, 'warn')
         }

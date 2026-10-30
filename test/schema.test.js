@@ -22,12 +22,13 @@ function stubPrices(table = {}) {
     }
 }
 
-function setup({ prices = stubPrices(), log = quietLog, ...options } = {}) {
+// wrapStore lets a test override store methods the handler sees
+function setup({ prices = stubPrices(), log = quietLog, wrapStore = store => store, ...options } = {}) {
     const clock = { now: 1_000_000 }
     const store = openStore({ path: ':memory:', now: () => clock.now })
     const id = store.createInstallation([{ region: 'FI', vatPercent: 25.5 }, { region: 'SE3', vatPercent: 0 }])
     store.saveTokens(id, 'access-1', 'refresh-1', 60_000)
-    const handler = createSchemaHandler({ config, store, prices, log, ...options })
+    const handler = createSchemaHandler({ config, store: wrapStore(store), prices, log, ...options })
     async function call(interactionType, extra = {}, token = 'access-1') {
         const body = {
             headers: { schema: 'st-schema', version: '1.0', interactionType, requestId: 'req-1' },
@@ -78,13 +79,27 @@ test('rejects unknown tokens with a global error', async () => {
 })
 
 test('rejects expired tokens with TOKEN-EXPIRED, also after cleanup', async () => {
-    const { store, call, clock } = setup()
+    const log = recordingLog()
+    const { store, id, call, clock } = setup({ log })
     clock.now += 60_000
     assert.equal((await call('discoveryRequest')).body.globalError.errorEnum, 'TOKEN-EXPIRED')
+    assert.equal(log.lines.at(-1).installationId, id)
 
     store.deleteExpired()
     assert.equal((await call('discoveryRequest')).body.globalError.errorEnum, 'TOKEN-EXPIRED')
     assert.equal((await call('discoveryRequest', {}, 'wrong-token')).body.globalError.errorEnum, 'INVALID-TOKEN')
+})
+
+test('unknown tokens get TOKEN-EXPIRED while a legacy installation may own them', async () => {
+    const { call } = setup({ wrapStore: store => ({ ...store, checkAccessToken: () => ({ status: 'unknown', legacy: true }) }) })
+    assert.equal((await call('discoveryRequest', {}, 'old')).body.globalError.errorEnum, 'TOKEN-EXPIRED')
+})
+
+test('a valid token without an installation is logged as an error', async () => {
+    const log = recordingLog()
+    const { id, call } = setup({ log, wrapStore: store => ({ ...store, getInstallation: () => null }) })
+    assert.equal((await call('discoveryRequest')).body.globalError.errorEnum, 'INVALID-TOKEN')
+    assert.deepEqual(log.lines.at(-2), { level: 'error', message: 'Valid access token without an installation', installationId: id })
 })
 
 test('discovery returns one device per installation region', async () => {

@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
+import { DatabaseSync } from 'node:sqlite'
 import { test } from 'node:test'
 import { openStore } from '../src/store.js'
 
@@ -63,30 +64,67 @@ test('access tokens expire and refresh tokens rotate', () => {
     assert.equal(store.consumeRefreshToken('refresh-1'), null)
 })
 
-test('remembers expired access tokens for a week', () => {
+test('remembers the newest expired access token until the installation is deleted', () => {
     const { store, clock } = memoryStore()
+    const week = 7 * 24 * 60 * 60 * 1000
     const id = store.createInstallation([{ region: 'FI', vatPercent: 25.5 }])
     store.saveTokens(id, 'access-1', 'refresh-1', 1000)
     assert.deepEqual(store.checkAccessToken('access-1'), { status: 'valid', installationId: id })
     assert.deepEqual(store.checkAccessToken('nope'), { status: 'unknown' })
 
     clock.now += 1000
-    assert.deepEqual(store.checkAccessToken('access-1'), { status: 'expired' })
+    assert.deepEqual(store.checkAccessToken('access-1'), { status: 'expired', installationId: id })
     store.deleteExpired()
-    assert.deepEqual(store.checkAccessToken('access-1'), { status: 'expired' })
+    clock.now += 365 * 24 * 60 * 60 * 1000
+    store.deleteExpired()
+    assert.deepEqual(store.checkAccessToken('access-1'), { status: 'expired', installationId: id })
 
-    clock.now += 7 * 24 * 60 * 60 * 1000 - 1
-    store.deleteExpired()
-    assert.deepEqual(store.checkAccessToken('access-1'), { status: 'expired' })
-    clock.now += 1
+    // Once refreshed, the old token is forgotten a week after it expired
+    store.consumeRefreshToken('refresh-1')
+    store.saveTokens(id, 'access-2', 'refresh-2', 1000)
     store.deleteExpired()
     assert.deepEqual(store.checkAccessToken('access-1'), { status: 'unknown' })
 
-    store.saveTokens(id, 'access-2', 'refresh-2', 1000)
     clock.now += 1000
     store.deleteExpired()
-    store.deleteInstallation(id)
+    store.saveTokens(id, 'access-3', 'refresh-3', 1000)
+    clock.now += week - 1
+    store.deleteExpired()
+    assert.deepEqual(store.checkAccessToken('access-2'), { status: 'expired', installationId: id })
+    clock.now += 1
+    store.deleteExpired()
     assert.deepEqual(store.checkAccessToken('access-2'), { status: 'unknown' })
+    assert.deepEqual(store.checkAccessToken('access-3'), { status: 'expired', installationId: id })
+
+    store.deleteInstallation(id)
+    assert.deepEqual(store.checkAccessToken('access-3'), { status: 'unknown' })
+})
+
+test('unknown tokens are legacy while an installation has a refresh token but no access token', () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'store-'))
+    const dbPath = path.join(dir, 'store.db')
+    try {
+        const clock = { now: 1_000_000 }
+        let store = openStore({ path: dbPath, now: () => clock.now })
+        const id = store.createInstallation([{ region: 'FI', vatPercent: 25.5 }])
+        store.saveTokens(id, 'access-1', 'refresh-1', 1000)
+        store.close()
+
+        // As before expired_access_tokens existed: the expired token was deleted outright
+        const db = new DatabaseSync(dbPath)
+        db.exec('DELETE FROM access_tokens')
+        db.close()
+
+        store = openStore({ path: dbPath, now: () => clock.now })
+        assert.deepEqual(store.checkAccessToken('access-1'), { status: 'unknown', legacy: true })
+
+        store.consumeRefreshToken('refresh-1')
+        store.saveTokens(id, 'access-2', 'refresh-2', 1000)
+        assert.deepEqual(store.checkAccessToken('access-1'), { status: 'unknown' })
+        store.close()
+    } finally {
+        fs.rmSync(dir, { recursive: true, force: true })
+    }
 })
 
 test('deleting an installation removes its regions, codes and tokens', () => {
