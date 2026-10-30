@@ -40,7 +40,18 @@ const MIGRATIONS = [
     `
     ALTER TABLE installations ADD COLUMN gone_count INTEGER NOT NULL DEFAULT 0;
     `,
+    `
+    CREATE TABLE expired_access_tokens (
+        token_hash TEXT PRIMARY KEY,
+        installation_id TEXT NOT NULL REFERENCES installations(id) ON DELETE CASCADE,
+        expires_at INTEGER NOT NULL
+    );
+    `,
 ]
+
+// How long an expired access token is remembered once a newer one exists for its installation.
+// The newest expired token of each installation is kept until the installation is deleted.
+const SUPERSEDED_TOKEN_RETENTION_MS = 7 * 24 * 60 * 60 * 1000
 
 const hash = value => crypto.createHash('sha256').update(value).digest('hex')
 
@@ -81,6 +92,27 @@ export function openStore({ path: dbPath, now = Date.now } = {}) {
             callbackUrls: row.callback_urls ? JSON.parse(row.callback_urls) : null,
             goneCount: row.gone_count,
         }
+    }
+
+    // 'valid' or 'expired' (a token we issued, with its installationId), or 'unknown'
+    // (never issued, or its installation was deleted). 'unknown' has legacy: true while some
+    // installation has a refresh token but no remembered access token: its tokens expired
+    // and were deleted before expired tokens were remembered, so the token may be one of them.
+    function checkAccessToken(accessToken) {
+        const tokenHash = hash(accessToken)
+        const row = db.prepare('SELECT installation_id, expires_at FROM access_tokens WHERE token_hash = ?').get(tokenHash)
+        if (row) {
+            return { status: row.expires_at <= now() ? 'expired' : 'valid', installationId: row.installation_id }
+        }
+        const expired = db.prepare('SELECT installation_id FROM expired_access_tokens WHERE token_hash = ?').get(tokenHash)
+        if (expired) return { status: 'expired', installationId: expired.installation_id }
+        const legacy = db.prepare(`
+            SELECT 1 FROM refresh_tokens r
+            WHERE NOT EXISTS (SELECT 1 FROM access_tokens WHERE installation_id = r.installation_id)
+                AND NOT EXISTS (SELECT 1 FROM expired_access_tokens WHERE installation_id = r.installation_id)
+            LIMIT 1
+        `).get()
+        return legacy ? { status: 'unknown', legacy: true } : { status: 'unknown' }
     }
 
     return {
@@ -177,11 +209,11 @@ export function openStore({ path: dbPath, now = Date.now } = {}) {
 
         // Returns the installation id, or null if the token is unknown or expired
         findInstallationIdByAccessToken(accessToken) {
-            const row = db.prepare('SELECT installation_id, expires_at FROM access_tokens WHERE token_hash = ?')
-                .get(hash(accessToken))
-            if (!row || row.expires_at <= now()) return null
-            return row.installation_id
+            const token = checkAccessToken(accessToken)
+            return token.status === 'valid' ? token.installationId : null
         },
+
+        checkAccessToken,
 
         // Single use (rotated on refresh): returns the installation id or null
         consumeRefreshToken(refreshToken) {
@@ -195,8 +227,22 @@ export function openStore({ path: dbPath, now = Date.now } = {}) {
 
         deleteExpired() {
             const at = now()
-            db.prepare('DELETE FROM auth_codes WHERE expires_at <= ?').run(at)
-            db.prepare('DELETE FROM access_tokens WHERE expires_at <= ?').run(at)
+            transaction(() => {
+                db.prepare('DELETE FROM auth_codes WHERE expires_at <= ?').run(at)
+                db.prepare(`
+                    INSERT OR IGNORE INTO expired_access_tokens (token_hash, installation_id, expires_at)
+                    SELECT token_hash, installation_id, expires_at FROM access_tokens WHERE expires_at <= ?
+                `).run(at)
+                db.prepare('DELETE FROM access_tokens WHERE expires_at <= ?').run(at)
+                // Superseded: the installation has a token that expires later
+                db.prepare(`
+                    DELETE FROM expired_access_tokens AS e
+                    WHERE e.expires_at <= ?
+                        AND (EXISTS (SELECT 1 FROM access_tokens WHERE installation_id = e.installation_id)
+                            OR EXISTS (SELECT 1 FROM expired_access_tokens
+                                WHERE installation_id = e.installation_id AND expires_at > e.expires_at))
+                `).run(at - SUPERSEDED_TOKEN_RETENTION_MS)
+            })
         },
     }
 }
